@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Neo Mirror</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    html, body { background: #09090b; min-height: 100vh; margin: 0; }
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fadein { animation: fadein 0.25s ease-out; }
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(132,204,22,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(132,204,22,0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+
+    function normalizeYaw(y) {
+      return ((y + 180) % 360 + 360) % 360 - 180;
+    }
+
+    function mirror({ pos, yaw, src, dst, axis }) {
+      const offX = pos.x - src.x;
+      const offY = pos.y - src.y;
+      const offZ = pos.z - src.z;
+      const ny = normalizeYaw(yaw);
+
+      let newOffX, newOffZ, newYaw;
+      if (axis === 'z') {
+        newOffX = 1 - offX;
+        newOffZ = offZ;
+        newYaw = -ny;
+      } else {
+        newOffX = offX;
+        newOffZ = 1 - offZ;
+        newYaw = 180 - ny;
+      }
+
+      return {
+        x: dst.x + newOffX,
+        y: dst.y + offY,
+        z: dst.z + newOffZ,
+        yaw: normalizeYaw(newYaw),
+      };
+    }
+
+    function parseNum(s) {
+      const v = parseFloat(s);
+      return Number.isNaN(v) ? null : v;
+    }
+
+    function App() {
+      const [px, setPx] = useState('0.69247500');
+      const [py, setPy] = useState('65.0');
+      const [pz, setPz] = useState('0.5');
+      const [yaw, setYaw] = useState('-178.4');
+      const [pitch, setPitch] = useState('0');
+      const [sBx, setSBx] = useState('0');
+      const [sBy, setSBy] = useState('64');
+      const [sBz, setSBz] = useState('0');
+      const [sameBlock, setSameBlock] = useState(true);
+      const [dBx, setDBx] = useState('0');
+      const [dBy, setDBy] = useState('64');
+      const [dBz, setDBz] = useState('0');
+      const [jumpAxis, setJumpAxis] = useState('z');
+      const [showHelp, setShowHelp] = useState(false);
+      const [copied, setCopied] = useState(false);
+
+      const result = useMemo(() => {
+        const pos = { x: parseNum(px), y: parseNum(py), z: parseNum(pz) };
+        const yawN = parseNum(yaw);
+        const pitchN = parseNum(pitch) ?? 0;
+        const src = { x: parseNum(sBx), y: parseNum(sBy), z: parseNum(sBz) };
+        const dst = sameBlock
+          ? src
+          : { x: parseNum(dBx), y: parseNum(dBy), z: parseNum(dBz) };
+
+        const allValid = [pos.x, pos.y, pos.z, yawN, src.x, src.y, src.z, dst.x, dst.y, dst.z]
+          .every((v) => v !== null);
+        if (!allValid) return null;
+
+        const m = mirror({ pos, yaw: yawN, src, dst, axis: jumpAxis });
+        return { ...m, pitch: pitchN, axis: jumpAxis };
+      }, [px, py, pz, yaw, pitch, sBx, sBy, sBz, sameBlock, dBx, dBy, dBz, jumpAxis]);
+
+      const tp = result
+        ? `/tp @s ${result.x.toFixed(8)} ${result.y.toFixed(8)} ${result.z.toFixed(8)} ${result.yaw.toFixed(4)} ${result.pitch.toFixed(4)}`
+        : '';
+
+      const handleCopy = async () => {
+        if (!tp) return;
+        try {
+          await navigator.clipboard.writeText(tp);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        } catch {}
+      };
+
+      return (
+        <div
+          className="min-h-screen bg-zinc-950 text-zinc-200 p-4 sm:p-6"
+          style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}
+        >
+          <div className="max-w-md mx-auto grid-bg pt-2">
+            <div className="mb-6 flex items-end justify-between">
+              <div>
+                <h1
+                  style={{
+                    fontFamily: "'VT323', monospace",
+                    fontSize: '2.75rem',
+                    lineHeight: 1,
+                    letterSpacing: '0.02em',
+                  }}
+                  className="text-lime-400"
+                >
+                  NEO·MIRROR
+                </h1>
+                <p className="text-[11px] text-zinc-500 tracking-widest uppercase mt-0.5">
+                  one-jump reflector
+                </p>
+              </div>
+              <button
+                onClick={() => setShowHelp(!showHelp)}
+                className="text-zinc-500 hover:text-lime-400 text-xs border border-zinc-800 hover:border-lime-500/40 rounded w-7 h-7 flex items-center justify-center transition-colors"
+                aria-label="help"
+              >
+                ?
+              </button>
+            </div>
+
+            {showHelp && <Help />}
+
+            <Section accent="cyan" label="Input strat">
+              <Group label="Player position">
+                <div className="grid grid-cols-3 gap-2">
+                  <Field label="X" value={px} onChange={setPx} />
+                  <Field label="Y" value={py} onChange={setPy} />
+                  <Field label="Z" value={pz} onChange={setPz} />
+                </div>
+              </Group>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Group label="Yaw">
+                  <Field label="°" value={yaw} onChange={setYaw} />
+                </Group>
+                <Group label="Pitch">
+                  <Field label="°" value={pitch} onChange={setPitch} />
+                </Group>
+              </div>
+
+              <Group label="Momentum block">
+                <div className="grid grid-cols-3 gap-2">
+                  <Field label="X" value={sBx} onChange={setSBx} integer />
+                  <Field label="Y" value={sBy} onChange={setSBy} integer />
+                  <Field label="Z" value={sBz} onChange={setSBz} integer />
+                </div>
+              </Group>
+
+              <label className="flex items-center gap-2 pt-1 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={sameBlock}
+                  onChange={(e) => setSameBlock(e.target.checked)}
+                  className="w-4 h-4 accent-lime-500"
+                />
+                <span className="text-[11px] text-zinc-300 tracking-wide">
+                  mirror within same block
+                </span>
+              </label>
+
+              {!sameBlock && (
+                <div className="fadein">
+                  <Group label="Destination momentum block">
+                    <div className="grid grid-cols-3 gap-2">
+                      <Field label="X" value={dBx} onChange={setDBx} integer />
+                      <Field label="Y" value={dBy} onChange={setDBy} integer />
+                      <Field label="Z" value={dBz} onChange={setDBz} integer />
+                    </div>
+                  </Group>
+                </div>
+              )}
+
+              <Group label="Jump axis">
+                <div className="grid grid-cols-2 gap-2">
+                  <AxisButton active={jumpAxis === 'z'} onClick={() => setJumpAxis('z')}>Z</AxisButton>
+                  <AxisButton active={jumpAxis === 'x'} onClick={() => setJumpAxis('x')}>X</AxisButton>
+                </div>
+                <p className="text-[10px] text-zinc-500 mt-1.5 leading-relaxed">
+                  Z is N/S jump, X is E/W jump. Independent of yaw, your facing
+                  can be anything (sidestep, loop momentum, diagonal, etc.).
+                </p>
+              </Group>
+            </Section>
+
+            <Section accent="lime" label="Mirrored strat">
+              {!result ? (
+                <div className="text-center text-xs text-zinc-500 py-4">
+                  fill in values to compute mirror...
+                </div>
+              ) : (
+                <Output result={result} tp={tp} copied={copied} onCopy={handleCopy} />
+              )}
+            </Section>
+
+            <p className="text-[10px] text-zinc-600 text-center mt-6 leading-relaxed px-4">
+              mirrors lateral offset and yaw across the jump axis. preserves all decimals.
+              quadrant doesn't matter. y &amp; pitch pass through.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    function Help() {
+      return (
+        <div className="fadein bg-zinc-900/70 border border-cyan-500/15 rounded-lg p-4 mb-5 text-[11px] leading-relaxed text-zinc-400 space-y-2">
+          <p><span className="text-cyan-300">momentum block:</span> integer block coords of the block the jump is built around. F3's "Looking at: block X Y Z" line is the easy way to read these. Whole numbers only, no .5.</p>
+          <p><span className="text-cyan-300">which coord matters:</span> for a Z-jump only the anchor's X matters. For an X-jump only Z. Y and the on-axis coord pass through.</p>
+          <p><span className="text-cyan-300">different dst block:</span> uncheck if the L-side strat lives on a different block in your course than the R-side. Then specify both momentum blocks separately.</p>
+          <p><span className="text-cyan-300">jump axis:</span> which axis the jump travels along (Z is N/S, X is E/W). Independent of yaw, your facing direction can be anything.</p>
+          <p><span className="text-cyan-300">decimals:</span> preserved exactly. Y and pitch pass through unchanged.</p>
+          <p className="text-orange-300/80 pt-1 border-t border-zinc-800"><span className="text-orange-300 font-bold">heads up:</span> this is a pure geometric mirror. Most jumps work cleanly, but some need slightly different coords on each side because of Minecraft's stepping and block-collision quirks. If you enter a jump and still collide with a block during momentum, you'll have to manually set up the reflecting coordinate. The bot doesn't work 100% of the time.</p>
+        </div>
+      );
+    }
+
+    function Output({ result, tp, copied, onCopy }) {
+      return (
+        <>
+          <div className="flex items-center justify-between text-[10px] uppercase tracking-widest pb-1">
+            <span className="text-zinc-500">mirror axis</span>
+            <span className="text-lime-400 font-bold">{result.axis === 'z' ? 'Z' : 'X'}</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <OutCell label="X" value={result.x.toFixed(8)} />
+            <OutCell label="Y" value={result.y.toFixed(8)} />
+            <OutCell label="Z" value={result.z.toFixed(8)} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <OutCell label="Yaw" value={result.yaw.toFixed(4)} />
+            <OutCell label="Pitch" value={result.pitch.toFixed(4)} />
+          </div>
+
+          <div className="bg-black/60 border border-zinc-800 rounded p-2.5">
+            <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1">/tp command</div>
+            <div className="font-mono text-[11px] text-zinc-300 break-all leading-relaxed">{tp}</div>
+          </div>
+
+          <button
+            onClick={onCopy}
+            className="w-full py-3 bg-lime-500 hover:bg-lime-400 active:bg-lime-600 text-black font-bold rounded text-sm tracking-widest transition-colors"
+          >
+            {copied ? '✓ COPIED' : 'COPY /TP COMMAND'}
+          </button>
+        </>
+      );
+    }
+
+    function Section({ accent, label, children }) {
+      const accentBg = accent === 'lime' ? 'bg-lime-400/60' : 'bg-cyan-400/60';
+      const borderClr = accent === 'lime' ? 'border-lime-500/15' : 'border-cyan-500/15';
+      return (
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-2">
+            <div className={`w-1 h-4 ${accentBg}`}></div>
+            <h2 className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">{label}</h2>
+          </div>
+          <div className={`bg-zinc-900/70 border ${borderClr} rounded-lg p-4 space-y-3 backdrop-blur-sm`}>
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    function Group({ label, children }) {
+      return (
+        <div>
+          <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1.5">{label}</div>
+          {children}
+        </div>
+      );
+    }
+
+    function Field({ label, value, onChange, integer }) {
+      return (
+        <div className="flex items-stretch bg-zinc-900 border border-zinc-800 rounded focus-within:border-cyan-500/50 transition-colors overflow-hidden">
+          <div className="bg-zinc-800/70 px-2 flex items-center text-[10px] text-zinc-500 font-bold tracking-wider">
+            {label}
+          </div>
+          <input
+            type="text"
+            inputMode={integer ? 'numeric' : 'decimal'}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="flex-1 bg-transparent px-2 py-2 text-zinc-100 font-mono text-xs focus:outline-none min-w-0 w-full"
+            spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="off"
+          />
+        </div>
+      );
+    }
+
+    function OutCell({ label, value }) {
+      return (
+        <div className="bg-black/40 border border-lime-500/20 rounded px-2 py-1.5">
+          <div className="text-[9px] uppercase text-zinc-500 tracking-widest font-bold">{label}</div>
+          <div className="font-mono text-xs text-lime-300 break-all">{value}</div>
+        </div>
+      );
+    }
+
+    function AxisButton({ active, onClick, children }) {
+      return (
+        <button
+          onClick={onClick}
+          className={`py-2 rounded text-[11px] font-bold tracking-wider transition-colors border ${
+            active
+              ? 'bg-cyan-500/20 border-cyan-400/50 text-cyan-200'
+              : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
+          }`}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
