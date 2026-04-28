@@ -35,8 +35,19 @@
   <script type="text/babel">
     const { useState, useMemo } = React;
 
+    const ANGLE_STEP_VANILLA = 360 / 65536;
+    const ANGLE_STEP_FAST = 360 / 4096;
+
     function normalizeYaw(y) {
       return ((y + 180) % 360 + 360) % 360 - 180;
+    }
+
+    function snapDown(yaw, step) {
+      return normalizeYaw(Math.floor(yaw / step) * step);
+    }
+
+    function snapUp(yaw, step) {
+      return normalizeYaw(Math.ceil(yaw / step) * step);
     }
 
     function mirror({ pos, yaw, src, dst, axis }) {
@@ -45,28 +56,32 @@
       const offZ = pos.z - src.z;
       const ny = normalizeYaw(yaw);
 
-      let newOffX, newOffZ, newYaw;
+      let newOffX, newOffZ, geomYaw;
       if (axis === 'z') {
         newOffX = 1 - offX;
         newOffZ = offZ;
-        newYaw = -ny;
+        geomYaw = -ny;
       } else {
         newOffX = offX;
         newOffZ = 1 - offZ;
-        newYaw = 180 - ny;
+        geomYaw = 180 - ny;
       }
 
       return {
         x: dst.x + newOffX,
         y: dst.y + offY,
         z: dst.z + newOffZ,
-        yaw: normalizeYaw(newYaw),
+        yawGeometric: normalizeYaw(geomYaw),
       };
     }
 
     function parseNum(s) {
       const v = parseFloat(s);
       return Number.isNaN(v) ? null : v;
+    }
+
+    function buildTp(x, y, z, yaw, pitch) {
+      return `/tp @s ${x.toFixed(16)} ${y.toFixed(16)} ${z.toFixed(16)} ${yaw.toFixed(6)} ${pitch.toFixed(6)}`;
     }
 
     function App() {
@@ -83,8 +98,10 @@
       const [dBy, setDBy] = useState('64');
       const [dBz, setDBz] = useState('0');
       const [jumpAxis, setJumpAxis] = useState('z');
+      const [yawMode, setYawMode] = useState('geometric');
+      const [fastMath, setFastMath] = useState(false);
       const [showHelp, setShowHelp] = useState(false);
-      const [copied, setCopied] = useState(false);
+      const [copiedKey, setCopiedKey] = useState(null);
 
       const result = useMemo(() => {
         const pos = { x: parseNum(px), y: parseNum(py), z: parseNum(pz) };
@@ -100,19 +117,30 @@
         if (!allValid) return null;
 
         const m = mirror({ pos, yaw: yawN, src, dst, axis: jumpAxis });
-        return { ...m, pitch: pitchN, axis: jumpAxis };
-      }, [px, py, pz, yaw, pitch, sBx, sBy, sBz, sameBlock, dBx, dBy, dBz, jumpAxis]);
+        const step = fastMath ? ANGLE_STEP_FAST : ANGLE_STEP_VANILLA;
+        const yawLower = snapDown(m.yawGeometric, step);
+        const yawUpper = snapUp(m.yawGeometric, step);
 
-      const tp = result
-        ? `/tp @s ${result.x.toFixed(8)} ${result.y.toFixed(8)} ${result.z.toFixed(8)} ${result.yaw.toFixed(4)} ${result.pitch.toFixed(4)}`
-        : '';
+        return {
+          x: m.x,
+          y: m.y,
+          z: m.z,
+          pitch: pitchN,
+          axis: jumpAxis,
+          yawGeometric: m.yawGeometric,
+          yawLower,
+          yawUpper,
+          tpGeometric: buildTp(m.x, m.y, m.z, m.yawGeometric, pitchN),
+          tpLower: buildTp(m.x, m.y, m.z, yawLower, pitchN),
+          tpUpper: buildTp(m.x, m.y, m.z, yawUpper, pitchN),
+        };
+      }, [px, py, pz, yaw, pitch, sBx, sBy, sBz, sameBlock, dBx, dBy, dBz, jumpAxis, fastMath]);
 
-      const handleCopy = async () => {
-        if (!tp) return;
+      const handleCopy = async (key, text) => {
         try {
-          await navigator.clipboard.writeText(tp);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
+          await navigator.clipboard.writeText(text);
+          setCopiedKey(key);
+          setTimeout(() => setCopiedKey(null), 1500);
         } catch {}
       };
 
@@ -202,14 +230,38 @@
 
               <Group label="Jump axis">
                 <div className="grid grid-cols-2 gap-2">
-                  <AxisButton active={jumpAxis === 'z'} onClick={() => setJumpAxis('z')}>Z</AxisButton>
-                  <AxisButton active={jumpAxis === 'x'} onClick={() => setJumpAxis('x')}>X</AxisButton>
+                  <ToggleButton active={jumpAxis === 'z'} onClick={() => setJumpAxis('z')}>Z</ToggleButton>
+                  <ToggleButton active={jumpAxis === 'x'} onClick={() => setJumpAxis('x')}>X</ToggleButton>
+                </div>
+              </Group>
+
+              <Group label="Yaw mode">
+                <div className="grid grid-cols-2 gap-2">
+                  <ToggleButton active={yawMode === 'geometric'} onClick={() => setYawMode('geometric')}>
+                    GEOMETRIC
+                  </ToggleButton>
+                  <ToggleButton active={yawMode === 'significant'} onClick={() => setYawMode('significant')}>
+                    SIGNIFICANT
+                  </ToggleButton>
                 </div>
                 <p className="text-[10px] text-zinc-500 mt-1.5 leading-relaxed">
-                  Z is N/S jump, X is E/W jump. Independent of yaw, your facing
-                  can be anything (sidestep, loop momentum, diagonal, etc.).
+                  Geometric: pure mathematical mirror. Significant: snaps yaw to the lookup-table bucket boundaries (gives lower &amp; upper candidates).
                 </p>
               </Group>
+
+              {yawMode === 'significant' && (
+                <label className="fadein flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={fastMath}
+                    onChange={(e) => setFastMath(e.target.checked)}
+                    className="w-4 h-4 accent-lime-500"
+                  />
+                  <span className="text-[11px] text-zinc-300 tracking-wide">
+                    Fast Math
+                  </span>
+                </label>
+              )}
             </Section>
 
             <Section accent="lime" label="Mirrored strat">
@@ -218,7 +270,12 @@
                   fill in values to compute mirror...
                 </div>
               ) : (
-                <Output result={result} tp={tp} copied={copied} onCopy={handleCopy} />
+                <Output
+                  result={result}
+                  mode={yawMode}
+                  copiedKey={copiedKey}
+                  onCopy={handleCopy}
+                />
               )}
             </Section>
 
@@ -238,13 +295,15 @@
           <p><span className="text-cyan-300">which coord matters:</span> for a Z-jump only the anchor's X matters. For an X-jump only Z. Y and the on-axis coord pass through.</p>
           <p><span className="text-cyan-300">different dst block:</span> uncheck if the L-side strat lives on a different block in your course than the R-side. Then specify both momentum blocks separately.</p>
           <p><span className="text-cyan-300">jump axis:</span> which axis the jump travels along (Z is N/S, X is E/W). Independent of yaw, your facing direction can be anything.</p>
+          <p><span className="text-cyan-300">yaw mode:</span> Geometric mirrors yaw mathematically (-yaw or 180-yaw). Significant snaps the result to the lower and upper bucket boundary of MC's sin/cos lookup table, giving two candidates to try when the geometric mirror lands between buckets.</p>
+          <p><span className="text-cyan-300">fast math:</span> only relevant in Significant mode. Optifine's Fast Math reduces the lookup table from 65536 buckets to 4096, so bucket size grows from 0.005° to 0.088°. Toggle this on if you play with Optifine's Fast Math enabled.</p>
           <p><span className="text-cyan-300">decimals:</span> preserved exactly. Y and pitch pass through unchanged.</p>
-          <p className="text-orange-300/80 pt-1 border-t border-zinc-800"><span className="text-orange-300 font-bold">heads up:</span> this is a pure geometric mirror. Most jumps work cleanly, but some need slightly different coords on each side because of Minecraft's stepping and block-collision quirks. If you enter a jump and still collide with a block during momentum, you'll have to manually set up the reflecting coordinate. The bot doesn't work 100% of the time.</p>
+          <p className="text-orange-300/80 pt-1 border-t border-zinc-800"><span className="text-orange-300 font-bold">reminder:</span> the tool can miss on tricky jumps. Always test the output in-game and tweak manually if a strat doesn't land.</p>
         </div>
       );
     }
 
-    function Output({ result, tp, copied, onCopy }) {
+    function Output({ result, mode, copiedKey, onCopy }) {
       return (
         <>
           <div className="flex items-center justify-between text-[10px] uppercase tracking-widest pb-1">
@@ -252,29 +311,61 @@
             <span className="text-lime-400 font-bold">{result.axis === 'z' ? 'Z' : 'X'}</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <OutCell label="X" value={result.x.toFixed(8)} />
-            <OutCell label="Y" value={result.y.toFixed(8)} />
-            <OutCell label="Z" value={result.z.toFixed(8)} />
+          <div className="grid grid-cols-1 gap-2">
+            <OutCell label="X" value={result.x.toFixed(16)} />
+            <OutCell label="Y" value={result.y.toFixed(16)} />
+            <OutCell label="Z" value={result.z.toFixed(16)} />
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <OutCell label="Yaw" value={result.yaw.toFixed(4)} />
-            <OutCell label="Pitch" value={result.pitch.toFixed(4)} />
-          </div>
+          <OutCell label="Pitch" value={result.pitch.toFixed(6)} />
 
-          <div className="bg-black/60 border border-zinc-800 rounded p-2.5">
-            <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1">/tp command</div>
-            <div className="font-mono text-[11px] text-zinc-300 break-all leading-relaxed">{tp}</div>
-          </div>
+          {mode === 'geometric' ? (
+            <YawCandidate
+              label="Geometric"
+              yaw={result.yawGeometric}
+              tp={result.tpGeometric}
+              copied={copiedKey === 'geom'}
+              onCopy={() => onCopy('geom', result.tpGeometric)}
+            />
+          ) : (
+            <>
+              <YawCandidate
+                label="Lower angle"
+                yaw={result.yawLower}
+                tp={result.tpLower}
+                copied={copiedKey === 'lower'}
+                onCopy={() => onCopy('lower', result.tpLower)}
+              />
+              <YawCandidate
+                label="Upper angle"
+                yaw={result.yawUpper}
+                tp={result.tpUpper}
+                copied={copiedKey === 'upper'}
+                onCopy={() => onCopy('upper', result.tpUpper)}
+              />
+            </>
+          )}
+        </>
+      );
+    }
 
+    function YawCandidate({ label, yaw, tp, copied, onCopy }) {
+      return (
+        <div className="border border-lime-500/15 rounded-lg p-3 space-y-2 bg-black/20">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-widest text-lime-400 font-bold">{label}</span>
+            <span className="font-mono text-xs text-lime-300">{yaw.toFixed(6)}</span>
+          </div>
+          <div className="bg-black/60 border border-zinc-800 rounded p-2">
+            <div className="font-mono text-[10px] text-zinc-300 break-all leading-relaxed">{tp}</div>
+          </div>
           <button
             onClick={onCopy}
-            className="w-full py-3 bg-lime-500 hover:bg-lime-400 active:bg-lime-600 text-black font-bold rounded text-sm tracking-widest transition-colors"
+            className="w-full py-2 bg-lime-500 hover:bg-lime-400 active:bg-lime-600 text-black font-bold rounded text-xs tracking-widest transition-colors"
           >
-            {copied ? '✓ COPIED' : 'COPY /TP COMMAND'}
+            {copied ? '✓ COPIED' : 'COPY /TP'}
           </button>
-        </>
+        </div>
       );
     }
 
@@ -332,7 +423,7 @@
       );
     }
 
-    function AxisButton({ active, onClick, children }) {
+    function ToggleButton({ active, onClick, children }) {
       return (
         <button
           onClick={onClick}
