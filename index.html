@@ -149,7 +149,7 @@
           className="min-h-screen bg-zinc-950 text-zinc-200 p-4 sm:p-6"
           style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}
         >
-          <div className="max-w-md mx-auto grid-bg pt-2">
+          <div className="max-w-4xl mx-auto grid-bg pt-2">
             <div className="mb-6 flex items-end justify-between">
               <div>
                 <h1
@@ -178,106 +178,105 @@
 
             {showHelp && <Help />}
 
-            <Section accent="cyan" label="Input strat">
-              <Group label="Player position">
-                <div className="grid grid-cols-3 gap-2">
-                  <Field label="X" value={px} onChange={setPx} />
-                  <Field label="Y" value={py} onChange={setPy} />
-                  <Field label="Z" value={pz} onChange={setPz} />
-                </div>
-              </Group>
-
-              <div className="grid grid-cols-2 gap-2">
-                <Group label="Yaw">
-                  <Field label="°" value={yaw} onChange={setYaw} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <Section accent="cyan" label="Input strat">
+                <Group label="Player position" caption="your precise F3 coords (all decimals matter)">
+                  <div className="grid grid-cols-3 gap-2">
+                    <Field label="X" value={px} onChange={setPx} />
+                    <Field label="Y" value={py} onChange={setPy} />
+                    <Field label="Z" value={pz} onChange={setPz} />
+                  </div>
                 </Group>
-                <Group label="Pitch">
-                  <Field label="°" value={pitch} onChange={setPitch} />
-                </Group>
-              </div>
 
-              <Group label="Momentum block">
-                <div className="grid grid-cols-3 gap-2">
-                  <Field label="X" value={sBx} onChange={setSBx} integer />
-                  <Field label="Y" value={sBy} onChange={setSBy} integer />
-                  <Field label="Z" value={sBz} onChange={setSBz} integer />
-                </div>
-              </Group>
-
-              <label className="flex items-center gap-2 pt-1 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={sameBlock}
-                  onChange={(e) => setSameBlock(e.target.checked)}
-                  className="w-4 h-4 accent-lime-500"
-                />
-                <span className="text-[11px] text-zinc-300 tracking-wide">
-                  mirror within same block
-                </span>
-              </label>
-
-              {!sameBlock && (
-                <div className="fadein">
-                  <Group label="Destination momentum block">
-                    <div className="grid grid-cols-3 gap-2">
-                      <Field label="X" value={dBx} onChange={setDBx} integer />
-                      <Field label="Y" value={dBy} onChange={setDBy} integer />
-                      <Field label="Z" value={dBz} onChange={setDBz} integer />
-                    </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Group label="Yaw" caption="facing direction">
+                    <Field label="°" value={yaw} onChange={setYaw} />
+                  </Group>
+                  <Group label="Pitch" caption="up and down">
+                    <Field label="°" value={pitch} onChange={setPitch} />
                   </Group>
                 </div>
-              )}
 
-              <Group label="Jump axis">
-                <div className="grid grid-cols-2 gap-2">
-                  <ToggleButton active={jumpAxis === 'z'} onClick={() => setJumpAxis('z')}>Z</ToggleButton>
-                  <ToggleButton active={jumpAxis === 'x'} onClick={() => setJumpAxis('x')}>X</ToggleButton>
-                </div>
-              </Group>
+                <Group label="Momentum block" caption="F3 'Looking at' integer coords of the block the jump is built on">
+                  <div className="grid grid-cols-3 gap-2">
+                    <Field label="X" value={sBx} onChange={setSBx} integer />
+                    <Field label="Y" value={sBy} onChange={setSBy} integer />
+                    <Field label="Z" value={sBz} onChange={setSBz} integer />
+                  </div>
+                </Group>
 
-              <Group label="Yaw mode">
-                <div className="grid grid-cols-2 gap-2">
-                  <ToggleButton active={yawMode === 'geometric'} onClick={() => setYawMode('geometric')}>
-                    GEOMETRIC
-                  </ToggleButton>
-                  <ToggleButton active={yawMode === 'significant'} onClick={() => setYawMode('significant')}>
-                    SIGNIFICANT
-                  </ToggleButton>
-                </div>
-                <p className="text-[10px] text-zinc-500 mt-1.5 leading-relaxed">
-                  Geometric: pure mathematical mirror. Significant: snaps yaw to the lookup-table bucket boundaries (gives lower &amp; upper candidates).
-                </p>
-              </Group>
-
-              {yawMode === 'significant' && (
-                <label className="fadein flex items-center gap-2 cursor-pointer select-none">
+                <label className="flex items-center gap-2 pt-1 cursor-pointer select-none">
                   <input
                     type="checkbox"
-                    checked={fastMath}
-                    onChange={(e) => setFastMath(e.target.checked)}
+                    checked={sameBlock}
+                    onChange={(e) => setSameBlock(e.target.checked)}
                     className="w-4 h-4 accent-lime-500"
                   />
                   <span className="text-[11px] text-zinc-300 tracking-wide">
-                    Fast Math
+                    mirror within same block
                   </span>
                 </label>
-              )}
-            </Section>
 
-            <Section accent="lime" label="Mirrored strat">
-              {!result ? (
-                <div className="text-center text-xs text-zinc-500 py-4">
-                  fill in values to compute mirror...
-                </div>
-              ) : (
-                <Output
-                  result={result}
-                  mode={yawMode}
-                  copiedKey={copiedKey}
-                  onCopy={handleCopy}
-                />
-              )}
-            </Section>
+                {!sameBlock && (
+                  <div className="fadein">
+                    <Group label="Destination momentum block" caption="F3 'Looking at' integer coords of the block the mirrored strat is built on">
+                      <div className="grid grid-cols-3 gap-2">
+                        <Field label="X" value={dBx} onChange={setDBx} integer />
+                        <Field label="Y" value={dBy} onChange={setDBy} integer />
+                        <Field label="Z" value={dBz} onChange={setDBz} integer />
+                      </div>
+                    </Group>
+                  </div>
+                )}
+
+                <Group label="Jump axis" caption="Z for N/S jumps, X for E/W jumps">
+                  <div className="grid grid-cols-2 gap-2">
+                    <ToggleButton active={jumpAxis === 'z'} onClick={() => setJumpAxis('z')}>Z</ToggleButton>
+                    <ToggleButton active={jumpAxis === 'x'} onClick={() => setJumpAxis('x')}>X</ToggleButton>
+                  </div>
+                </Group>
+
+                <Group label="Yaw mode" caption="Geometric: pure mirror. Significant: snap to bucket boundaries.">
+                  <div className="grid grid-cols-2 gap-2">
+                    <ToggleButton active={yawMode === 'geometric'} onClick={() => setYawMode('geometric')}>
+                      GEOMETRIC
+                    </ToggleButton>
+                    <ToggleButton active={yawMode === 'significant'} onClick={() => setYawMode('significant')}>
+                      SIGNIFICANT
+                    </ToggleButton>
+                  </div>
+                </Group>
+
+                {yawMode === 'significant' && (
+                  <label className="fadein flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={fastMath}
+                      onChange={(e) => setFastMath(e.target.checked)}
+                      className="w-4 h-4 accent-lime-500"
+                    />
+                    <span className="text-[11px] text-zinc-300 tracking-wide">
+                      Fast Math
+                    </span>
+                  </label>
+                )}
+              </Section>
+
+              <Section accent="lime" label="Mirrored strat">
+                {!result ? (
+                  <div className="text-center text-xs text-zinc-500 py-4">
+                    fill in values to compute mirror...
+                  </div>
+                ) : (
+                  <Output
+                    result={result}
+                    mode={yawMode}
+                    copiedKey={copiedKey}
+                    onCopy={handleCopy}
+                  />
+                )}
+              </Section>
+            </div>
 
             <p className="text-[10px] text-zinc-600 text-center mt-6 leading-relaxed px-4">
               mirrors lateral offset and yaw across the jump axis. preserves all decimals.
@@ -311,17 +310,22 @@
             <span className="text-lime-400 font-bold">{result.axis === 'z' ? 'Z' : 'X'}</span>
           </div>
 
-          <div className="grid grid-cols-1 gap-2">
-            <OutCell label="X" value={result.x.toFixed(16)} />
-            <OutCell label="Y" value={result.y.toFixed(16)} />
-            <OutCell label="Z" value={result.z.toFixed(16)} />
-          </div>
+          <Group label="Position" caption="the mirrored player coordinates">
+            <div className="grid grid-cols-1 gap-2">
+              <OutCell label="X" value={result.x.toFixed(16)} />
+              <OutCell label="Y" value={result.y.toFixed(16)} />
+              <OutCell label="Z" value={result.z.toFixed(16)} />
+            </div>
+          </Group>
 
-          <OutCell label="Pitch" value={result.pitch.toFixed(6)} />
+          <Group label="Pitch" caption="same as input">
+            <OutCell label="°" value={result.pitch.toFixed(6)} />
+          </Group>
 
           {mode === 'geometric' ? (
             <YawCandidate
               label="Geometric"
+              caption="pure mathematical reflection of your yaw"
               yaw={result.yawGeometric}
               tp={result.tpGeometric}
               copied={copiedKey === 'geom'}
@@ -331,6 +335,7 @@
             <>
               <YawCandidate
                 label="Lower angle"
+                caption="snapped down to the nearest bucket boundary"
                 yaw={result.yawLower}
                 tp={result.tpLower}
                 copied={copiedKey === 'lower'}
@@ -338,6 +343,7 @@
               />
               <YawCandidate
                 label="Upper angle"
+                caption="snapped up to the nearest bucket boundary"
                 yaw={result.yawUpper}
                 tp={result.tpUpper}
                 copied={copiedKey === 'upper'}
@@ -349,7 +355,7 @@
       );
     }
 
-    function YawCandidate({ label, yaw, tp, copied, onCopy }) {
+    function YawCandidate({ label, caption, yaw, tp, copied, onCopy }) {
       return (
         <div className="border border-lime-500/15 rounded-lg p-3 space-y-2 bg-black/20">
           <div className="flex items-center justify-between">
@@ -365,6 +371,7 @@
           >
             {copied ? '✓ COPIED' : 'COPY /TP'}
           </button>
+          {caption && <p className="text-[10px] text-zinc-600 leading-relaxed">{caption}</p>}
         </div>
       );
     }
@@ -373,7 +380,7 @@
       const accentBg = accent === 'lime' ? 'bg-lime-400/60' : 'bg-cyan-400/60';
       const borderClr = accent === 'lime' ? 'border-lime-500/15' : 'border-cyan-500/15';
       return (
-        <div className="mb-5">
+        <div>
           <div className="flex items-center gap-2 mb-2">
             <div className={`w-1 h-4 ${accentBg}`}></div>
             <h2 className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">{label}</h2>
@@ -385,11 +392,12 @@
       );
     }
 
-    function Group({ label, children }) {
+    function Group({ label, caption, children }) {
       return (
         <div>
           <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1.5">{label}</div>
           {children}
+          {caption && <p className="text-[10px] text-zinc-600 mt-1 leading-relaxed">{caption}</p>}
         </div>
       );
     }
