@@ -80,8 +80,18 @@
       return Number.isNaN(v) ? null : v;
     }
 
-    function buildTp(x, y, z, yaw, pitch) {
-      return `/tp @s ${x.toFixed(16)} ${y.toFixed(16)} ${z.toFixed(16)} ${yaw.toFixed(6)} ${pitch.toFixed(6)}`;
+    function inputDecimals(str) {
+      const s = String(str).trim();
+      const dot = s.indexOf('.');
+      return dot === -1 ? 0 : s.length - dot - 1;
+    }
+
+    function formatNatural(value) {
+      let s = value.toFixed(13);
+      if (s.includes('.')) {
+        s = s.replace(/0+$/, '').replace(/\.$/, '');
+      }
+      return s;
     }
 
     function App() {
@@ -89,7 +99,7 @@
       const [py, setPy] = useState('65.0');
       const [pz, setPz] = useState('0.5');
       const [yaw, setYaw] = useState('-178.4');
-      const [pitch, setPitch] = useState('0');
+      const [pitch, setPitch] = useState('50');
       const [sBx, setSBx] = useState('0');
       const [sBy, setSBy] = useState('64');
       const [sBz, setSBz] = useState('0');
@@ -121,18 +131,22 @@
         const yawLower = snapDown(m.yawGeometric, step);
         const yawUpper = snapUp(m.yawGeometric, step);
 
+        const xStr = m.x.toFixed(inputDecimals(px));
+        const yStr = m.y.toFixed(inputDecimals(py));
+        const zStr = m.z.toFixed(inputDecimals(pz));
+        const pitchStr = pitchN.toFixed(inputDecimals(pitch));
+        const yawGeomStr = m.yawGeometric.toFixed(inputDecimals(yaw));
+        const yawLowerStr = formatNatural(yawLower);
+        const yawUpperStr = formatNatural(yawUpper);
+
         return {
-          x: m.x,
-          y: m.y,
-          z: m.z,
-          pitch: pitchN,
           axis: jumpAxis,
-          yawGeometric: m.yawGeometric,
-          yawLower,
-          yawUpper,
-          tpGeometric: buildTp(m.x, m.y, m.z, m.yawGeometric, pitchN),
-          tpLower: buildTp(m.x, m.y, m.z, yawLower, pitchN),
-          tpUpper: buildTp(m.x, m.y, m.z, yawUpper, pitchN),
+          xStr, yStr, zStr,
+          pitchStr,
+          yawGeomStr, yawLowerStr, yawUpperStr,
+          tpGeometric: `/tp @s ${xStr} ${yStr} ${zStr} ${yawGeomStr} ${pitchStr}`,
+          tpLower: `/tp @s ${xStr} ${yStr} ${zStr} ${yawLowerStr} ${pitchStr}`,
+          tpUpper: `/tp @s ${xStr} ${yStr} ${zStr} ${yawUpperStr} ${pitchStr}`,
         };
       }, [px, py, pz, yaw, pitch, sBx, sBy, sBz, sameBlock, dBx, dBy, dBz, jumpAxis, fastMath]);
 
@@ -192,7 +206,7 @@
                   <Group label="Yaw" caption="facing direction">
                     <Field label="°" value={yaw} onChange={setYaw} />
                   </Group>
-                  <Group label="Pitch" caption="up and down">
+                  <Group label="Pitch" caption="up and down (default = 50)">
                     <Field label="°" value={pitch} onChange={setPitch} />
                   </Group>
                 </div>
@@ -312,21 +326,18 @@
 
           <Group label="Position" caption="the mirrored player coordinates">
             <div className="grid grid-cols-1 gap-2">
-              <OutCell label="X" value={result.x.toFixed(16)} />
-              <OutCell label="Y" value={result.y.toFixed(16)} />
-              <OutCell label="Z" value={result.z.toFixed(16)} />
+              <OutCell label="X" value={result.xStr} />
+              <OutCell label="Y" value={result.yStr} />
+              <OutCell label="Z" value={result.zStr} />
             </div>
-          </Group>
-
-          <Group label="Pitch" caption="same as input">
-            <OutCell label="°" value={result.pitch.toFixed(6)} />
           </Group>
 
           {mode === 'geometric' ? (
             <YawCandidate
               label="Geometric"
               caption="pure mathematical reflection of your yaw"
-              yaw={result.yawGeometric}
+              yawStr={result.yawGeomStr}
+              pitchStr={result.pitchStr}
               tp={result.tpGeometric}
               copied={copiedKey === 'geom'}
               onCopy={() => onCopy('geom', result.tpGeometric)}
@@ -336,7 +347,8 @@
               <YawCandidate
                 label="Lower angle"
                 caption="snapped down to the nearest bucket boundary"
-                yaw={result.yawLower}
+                yawStr={result.yawLowerStr}
+                pitchStr={result.pitchStr}
                 tp={result.tpLower}
                 copied={copiedKey === 'lower'}
                 onCopy={() => onCopy('lower', result.tpLower)}
@@ -344,7 +356,8 @@
               <YawCandidate
                 label="Upper angle"
                 caption="snapped up to the nearest bucket boundary"
-                yaw={result.yawUpper}
+                yawStr={result.yawUpperStr}
+                pitchStr={result.pitchStr}
                 tp={result.tpUpper}
                 copied={copiedKey === 'upper'}
                 onCopy={() => onCopy('upper', result.tpUpper)}
@@ -355,12 +368,13 @@
       );
     }
 
-    function YawCandidate({ label, caption, yaw, tp, copied, onCopy }) {
+    function YawCandidate({ label, caption, yawStr, pitchStr, tp, copied, onCopy }) {
       return (
         <div className="border border-lime-500/15 rounded-lg p-3 space-y-2 bg-black/20">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-widest text-lime-400 font-bold">{label}</span>
-            <span className="font-mono text-xs text-lime-300">{yaw.toFixed(6)}</span>
+          <div className="text-[10px] uppercase tracking-widest text-lime-400 font-bold">{label}</div>
+          <div className="grid grid-cols-2 gap-2">
+            <OutCell label="Yaw" value={yawStr} />
+            <OutCell label="Pitch" value={pitchStr} />
           </div>
           <div className="bg-black/60 border border-zinc-800 rounded p-2">
             <div className="font-mono text-[10px] text-zinc-300 break-all leading-relaxed">{tp}</div>
