@@ -6,7 +6,7 @@ A coordinate mirror for Minecraft parkour one-jumps. Converts a left-handed stra
 
 Grab the latest installer from the [Releases](../../releases) page.
 
-- **Windows:** `NeoMirror-Setup.exe`. Adds a Start Menu entry and desktop shortcut.
+- **Windows:** `NeoMirror-Setup.exe` — double-click to install. Adds a Start Menu entry and desktop shortcut.
 - **Mac / Linux:** zip archive containing the runnable app.
 
 ## How it works
@@ -17,7 +17,7 @@ For Z-jumps only the X coord of the momentum block matters; for X-jumps only Z. 
 
 ## Limitations
 
-This is a pure geometric mirror. Most jumps work cleanly, but some need slightly different coords on each side because of Minecraft's stepping and block-collision quirks. If you enter the jump and still collide with a block during momentum, you'll need to set up the mirrored coordinate manually, or tweak the given coords to match any specific setup.
+This is a pure geometric mirror. Most jumps work cleanly, but some need slightly different coords on each side because of Minecraft's stepping and block-collision quirks. If you enter the jump and still collide with a block during momentum, you'll need to set up the mirrored coordinate manually.
 
 ## Build from source
 

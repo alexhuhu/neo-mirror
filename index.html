@@ -112,6 +112,27 @@
       const [fastMath, setFastMath] = useState(false);
       const [showHelp, setShowHelp] = useState(false);
       const [copiedKey, setCopiedKey] = useState(null);
+      const [quickPaste, setQuickPaste] = useState('');
+      const [quickPasteOk, setQuickPasteOk] = useState(false);
+
+      const handleQuickPaste = (text) => {
+        setQuickPaste(text);
+        const parts = text.trim().split(/\s+/);
+        if (parts.length !== 5) {
+          setQuickPasteOk(false);
+          return;
+        }
+        if (parts.some((p) => Number.isNaN(parseFloat(p)) || !/^-?\d+(\.\d+)?$/.test(p))) {
+          setQuickPasteOk(false);
+          return;
+        }
+        setPx(parts[0]);
+        setPy(parts[1]);
+        setPz(parts[2]);
+        setYaw(parts[3]);
+        setPitch(parts[4]);
+        setQuickPasteOk(true);
+      };
 
       const result = useMemo(() => {
         const pos = { x: parseNum(px), y: parseNum(py), z: parseNum(pz) };
@@ -194,6 +215,27 @@
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <Section accent="cyan" label="Input strat">
+                <Group label="Quick paste" caption="paste /coords output: X Y Z yaw pitch (auto-fills below)">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={quickPaste}
+                      onChange={(e) => handleQuickPaste(e.target.value)}
+                      placeholder="123.45678 64 -89.123 47.5 12.3"
+                      className="w-full bg-black/40 border border-zinc-800 focus:border-cyan-500/60 focus:outline-none rounded px-3 py-2 pr-9 text-xs text-zinc-200 placeholder-zinc-700 font-mono tracking-tight transition-colors"
+                    />
+                    {quickPaste.trim() !== '' && (
+                      <span
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold tracking-widest ${
+                          quickPasteOk ? 'text-lime-400' : 'text-zinc-600'
+                        }`}
+                      >
+                        {quickPasteOk ? '✓' : '···'}
+                      </span>
+                    )}
+                  </div>
+                </Group>
+
                 <Group label="Player position" caption="your precise F3 coords (all decimals matter)">
                   <div className="grid grid-cols-3 gap-2">
                     <Field label="X" value={px} onChange={setPx} />

@@ -1,7 +1,7 @@
 {
   "name": "neo-mirror",
   "productName": "Neo Mirror",
-  "version": "1.2.0",
+  "version": "1.0.0",
   "description": "Mirror Minecraft parkour one-jump coordinates between left and right-handed strats.",
   "author": "alexhuhu",
   "license": "MIT",
